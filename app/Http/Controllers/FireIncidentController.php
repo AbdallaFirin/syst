@@ -3,26 +3,36 @@
 namespace App\Http\Controllers;
 
 use App\Models\FireIncident;
+use App\Models\IncidentImage;
 use App\Models\IncidentCause;
 use App\Models\Place;
 use App\Models\PlaceCategory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 
 class FireIncidentController extends Controller
 {
     public function index(Request $request)
     {
-        // Basic filtering can be added here
         $query = FireIncident::with(['place', 'cause'])->latest('incident_date');
 
-        if ($request->filled('date')) {
-            $query->whereDate('incident_date', $request->date);
+        if ($request->filled('date_from')) {
+            $query->whereDate('incident_date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('incident_date', '<=', $request->date_to);
+        }
+
+        if ($request->filled('cause_id')) {
+            $query->where('incident_cause_id', $request->cause_id);
         }
 
         return Inertia::render('FireIncidents/Index', [
             'incidents' => $query->get(),
-            'filters' => $request->only(['date'])
+            'causes' => IncidentCause::all(),
+            'filters' => $request->only(['date_from', 'date_to', 'cause_id'])
         ]);
     }
 
@@ -48,9 +58,21 @@ class FireIncidentController extends Controller
             'rescued_people' => 'required|integer|min:0',
             'rescued_assets' => 'nullable|string',
             'additional_notes' => 'nullable|string',
+            'image' => 'nullable|image|max:2048', // Image validation
+            'image_caption' => 'nullable|string|max:255',
         ]);
 
-        FireIncident::create($validated);
+        $incidentData = collect($validated)->except(['image', 'image_caption'])->toArray();
+        $incident = FireIncident::create($incidentData);
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('incident_images', 'public');
+            
+            $incident->images()->create([
+                'image_path' => $path,
+                'caption' => $request->image_caption
+            ]);
+        }
 
         return redirect()->route('fire-incidents.index')->with('success', 'Fire Incident registered successfully.');
     }
@@ -58,7 +80,7 @@ class FireIncidentController extends Controller
     public function edit(FireIncident $fireIncident)
     {
         return Inertia::render('FireIncidents/Edit', [
-            'incident' => $fireIncident,
+            'incident' => $fireIncident->load('images'),
             'places' => Place::all(),
             'causes' => IncidentCause::all()
         ]);
@@ -77,6 +99,7 @@ class FireIncidentController extends Controller
             'rescued_people' => 'required|integer|min:0',
             'rescued_assets' => 'nullable|string',
             'additional_notes' => 'nullable|string',
+            'status' => 'required|in:pending,investigating,resolved,closed',
         ]);
 
         $fireIncident->update($validated);
@@ -88,5 +111,46 @@ class FireIncidentController extends Controller
     {
         $fireIncident->delete();
         return redirect()->route('fire-incidents.index')->with('success', 'Fire Incident deleted successfully.');
+    }
+    public function uploadImage(Request $request, FireIncident $fireIncident)
+    {
+        $request->validate([
+            'image' => 'required|image|max:2048', // 2MB max
+            'caption' => 'nullable|string|max:255'
+        ]);
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('incident_images', 'public');
+            
+            $fireIncident->images()->create([
+                'image_path' => $path,
+                'caption' => $request->caption
+            ]);
+
+            return back()->with('success', 'Image uploaded successfully.');
+        }
+
+        return back()->with('error', 'Image upload failed.');
+    }
+
+    public function deleteImage($id)
+    {
+        $image = IncidentImage::findOrFail($id);
+        
+        // Delete file from storage
+        Storage::disk('public')->delete($image->image_path);
+        
+        $image->delete();
+
+        return back()->with('success', 'Image deleted successfully.');
+    }
+
+    public function caseFile(FireIncident $fireIncident)
+    {
+        $fireIncident->load(['place.category', 'cause', 'images']);
+        
+        return Inertia::render('FireIncidents/CaseFile', [
+            'incident' => $fireIncident
+        ]);
     }
 }

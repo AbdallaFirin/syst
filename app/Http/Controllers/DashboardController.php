@@ -31,6 +31,11 @@ class DashboardController extends Controller
                 ->where('expiry_date', '>', now()) // Optional: Don't show already expired? Or show all? User likely wants all 'problematic' ones. Let's show all expiring soon or expired.
                 ->orderBy('expiry_date', 'asc')
                 ->take(5)
+                ->get(),
+            'incidents_by_category' => FireIncident::join('places', 'fire_incidents.place_id', '=', 'places.id')
+                ->join('place_categories', 'places.place_category_id', '=', 'place_categories.id')
+                ->selectRaw('place_categories.name as category, count(*) as count')
+                ->groupBy('place_categories.name')
                 ->get()
         ]);
     }

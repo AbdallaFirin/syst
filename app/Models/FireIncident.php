@@ -19,7 +19,8 @@ class FireIncident extends Model
         'property_damage',
         'rescued_people',
         'rescued_assets',
-        'additional_notes'
+        'additional_notes',
+        'status'
     ];
 
     protected $casts = [
@@ -34,5 +35,10 @@ class FireIncident extends Model
     public function cause()
     {
         return $this->belongsTo(IncidentCause::class, 'incident_cause_id');
+    }
+
+    public function images()
+    {
+        return $this->hasMany(IncidentImage::class, 'fire_incident_id');
     }
 }

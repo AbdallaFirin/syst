@@ -8,10 +8,28 @@ use Inertia\Inertia;
 
 class ChemicalController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $query = Chemical::query();
+
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('chemical_type', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->boolean('expiring_soon')) {
+            // Filter chemicals expiring in next 90 days or already expired
+            $query->whereDate('expiry_date', '<=', now()->addDays(90));
+        }
+
+        $query->withCount('placeCategories')->with('placeCategories:id,name');
+
         return Inertia::render('Chemicals/Index', [
-            'chemicals' => Chemical::all()
+            'chemicals' => $query->get(),
+            'filters' => $request->only(['search', 'expiring_soon'])
         ]);
     }
 

@@ -9,10 +9,21 @@ use Inertia\Inertia;
 
 class VehicleController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $query = Vehicle::with('driver');
+
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('plate_number', 'like', "%{$search}%")
+                  ->orWhere('vehicle_type', 'like', "%{$search}%");
+            });
+        }
+
         return Inertia::render('Vehicles/Index', [
-            'vehicles' => Vehicle::with('driver')->get()
+            'vehicles' => $query->get(),
+            'filters' => $request->only(['search'])
         ]);
     }
 

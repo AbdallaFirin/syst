@@ -26,10 +26,20 @@ class ReportController extends Controller
             $endDate = $request->end_date . ' 23:59:59';
 
             // 1. Fire Incidents
-            $incidents = FireIncident::with(['place.category', 'cause'])
-                ->whereBetween('incident_date', [$startDate, $endDate])
-                ->latest('incident_date')
-                ->get();
+            $query = FireIncident::with(['place.category', 'cause'])
+                ->whereBetween('incident_date', [$startDate, $endDate]);
+
+            if ($request->has('cause_id') && $request->cause_id) {
+                $query->where('incident_cause_id', $request->cause_id);
+            }
+
+            if ($request->has('category_id') && $request->category_id) {
+                $query->whereHas('place', function ($q) use ($request) {
+                    $q->where('place_category_id', $request->category_id);
+                });
+            }
+
+            $incidents = $query->latest('incident_date')->get();
 
             // 2. Trainings
             $trainings = Training::whereBetween('conducted_at', [$startDate, $endDate])
@@ -65,18 +75,91 @@ class ReportController extends Controller
                 'property_damage_count' => $incidents->filter(fn($i) => !empty($i->property_damage))->count(),
             ];
 
+             // Chart Data 1: Incidents by Cause
+            $incidentsByCause = $incidents->groupBy('incident_cause_id')->map(function ($row) {
+                return [
+                    'cause' => $row->first()->cause->name ?? 'Unknown',
+                    'count' => $row->count(),
+                    'color' => '#' . substr(md5($row->first()->incident_cause_id), 0, 6) // Deterministic color
+                ];
+            })->values();
+
+            // Chart Data 2: Monthly Trends
+            $monthlyTrends = $incidents->groupBy(function ($d) {
+                return \Carbon\Carbon::parse($d->incident_date)->format('Y-m');
+            })->map(function ($row) {
+                return [
+                    'month' => \Carbon\Carbon::parse($row->first()->incident_date)->format('M Y'),
+                    'count' => $row->count(),
+                    'loss' => $row->sum('financial_loss')
+                ];
+            })->sortBy(function($row, $key) {
+                return $key; 
+            })->values();
+
             $data = [
                 'incidents' => $incidents,
                 'trainings' => $trainings,
                 'maintenance' => $maintenance,
                 'awareness' => $awareness,
                 'summary' => $summary,
+                'charts' => [
+                    'by_cause' => $incidentsByCause,
+                    'monthly_trends' => $monthlyTrends
+                ]
             ];
         }
 
         return Inertia::render('Reports/Index', [
             'reportData' => $data,
-            'filters' => $request->only(['start_date', 'end_date'])
+            'filters' => $request->only(['start_date', 'end_date', 'cause_id', 'category_id']),
+            'causes' => \App\Models\IncidentCause::all(),
+            'categories' => \App\Models\PlaceCategory::all(),
         ]);
+    }
+    public function export(Request $request) {
+        $startDate = $request->start_date;
+        $endDate = $request->end_date . ' 23:59:59';
+
+        $query = FireIncident::with(['place.category', 'cause'])
+            ->whereBetween('incident_date', [$startDate, $endDate]);
+
+        if ($request->has('cause_id') && $request->cause_id) {
+            $query->where('incident_cause_id', $request->cause_id);
+        }
+
+        if ($request->has('category_id') && $request->category_id) {
+            $query->whereHas('place', function ($q) use ($request) {
+                $q->where('place_category_id', $request->category_id);
+            });
+        }
+
+        $incidents = $query->latest('incident_date')->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="fire_safety_report_' . date('Y-m-d') . '.csv"',
+        ];
+
+        $callback = function () use ($incidents) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['Date', 'Category', 'Place', 'Cause', 'Human Loss (Dead)', 'Injured', 'Financial Loss', 'Rescued']);
+
+            foreach ($incidents as $incident) {
+                fputcsv($file, [
+                    $incident->incident_date,
+                    $incident->place->category->name ?? 'N/A',
+                    $incident->place->name ?? 'N/A',
+                    $incident->cause->name ?? 'N/A',
+                    $incident->human_loss,
+                    $incident->injured_people,
+                    $incident->financial_loss,
+                    $incident->rescued_people
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

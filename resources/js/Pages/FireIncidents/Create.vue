@@ -30,6 +30,9 @@ const form = useForm({
     rescued_people: 0,
     rescued_assets: '',
     additional_notes: '',
+    status: 'pending',
+    image: null,
+    image_caption: '',
 });
 
 const submit = () => {
@@ -224,6 +227,31 @@ const createCause = () => {
                                         class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
                                         rows="3"></textarea>
                                     <InputError class="mt-2" :message="form.errors.additional_notes" />
+                                </div>
+
+                                <!-- Evidence (Moved to First Form) -->
+                                <div class="col-span-2 border-t pt-4 mt-2">
+                                    <h3 class="text-lg font-medium text-gray-900 mb-4">Evidence & Photos</h3>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <!-- Image Upload -->
+                                        <div class="md:col-span-2">
+                                            <InputLabel value="Upload Initial Photo (Evidence)" />
+                                            <input type="file" @change="e => form.image = e.target.files[0]" accept="image/*" class="mt-1 block w-full text-sm text-gray-500
+                                                    file:mr-4 file:py-2 file:px-4
+                                                    file:rounded-full file:border-0
+                                                    file:text-sm file:font-semibold
+                                                    file:bg-indigo-50 file:text-indigo-700
+                                                    hover:file:bg-indigo-100
+                                                "/>
+                                            <InputError class="mt-2" :message="form.errors.image" />
+                                            
+                                            <div class="mt-2">
+                                                <InputLabel value="Caption" />
+                                                <TextInput v-model="form.image_caption" type="text" class="mt-1 block w-full" placeholder="e.g. Front view of fire" />
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                             </div>

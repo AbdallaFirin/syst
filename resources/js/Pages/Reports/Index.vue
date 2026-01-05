@@ -1,14 +1,17 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
+import AnalyticsCharts from '@/Components/Reports/AnalyticsCharts.vue';
 
 const props = defineProps({
     reportData: Object,
     filters: Object,
+    causes: Array,
+    categories: Array,
 });
 
 const page = usePage();
@@ -18,6 +21,8 @@ const currentDate = new Date().toLocaleDateString('en-GB');
 const form = useForm({
     start_date: props.filters.start_date || '',
     end_date: props.filters.end_date || '',
+    cause_id: props.filters.cause_id || '',
+    category_id: props.filters.category_id || '',
 });
 
 // Editable fields for the report (Client-side temporary state for print)
@@ -33,18 +38,35 @@ const printReport = () => {
     window.print();
 };
 
-const isCustomMode = ref(false);
-
-const toggleCustomMode = () => {
-    isCustomMode.value = !isCustomMode.value;
+const exportReport = () => {
+    const params = new URLSearchParams({
+        start_date: form.start_date,
+        end_date: form.end_date,
+        cause_id: form.cause_id,
+        category_id: form.category_id,
+    });
+    window.location.href = route('reports.export') + '?' + params.toString();
 };
 
-const generateQuickReport = (type) => {
-    isCustomMode.value = false; // Hide custom inputs
+const isCustomMode = ref(false);
+const selectedPeriod = ref('');
+
+const handlePeriodChange = () => {
+    const type = selectedPeriod.value;
+
+    if (type === 'custom') {
+        isCustomMode.value = true;
+        return;
+    }
+
+    isCustomMode.value = false;
     const today = new Date();
     const formatDate = (date) => date.toISOString().split('T')[0];
 
+    // Reset dates first
+    form.start_date = '';
     form.end_date = formatDate(today);
+
     let start = new Date(today);
 
     if (type === 'daily') {
@@ -61,11 +83,68 @@ const generateQuickReport = (type) => {
         // Start of current year
         start = new Date(today.getFullYear(), 0, 1);
         form.start_date = formatDate(start);
+    } else if (type === 'previous_year') {
+        // Start of previous year
+        start = new Date(today.getFullYear() - 1, 0, 1);
+        form.start_date = formatDate(start);
+        // End of previous year
+        const end = new Date(today.getFullYear() - 1, 11, 31);
+        form.end_date = formatDate(end);
     }
 
-    // Auto submit
-    submit();
+    if (form.start_date) {
+        submit();
+    }
 };
+
+const resetFilters = () => {
+    form.cause_id = '';
+    form.category_id = '';
+    selectedPeriod.value = 'monthly';
+    handlePeriodChange();
+};
+
+onMounted(() => {
+    const start = props.filters.start_date;
+    const end = props.filters.end_date;
+
+    if (start && end) {
+        const today = new Date();
+        const formatDate = (date) => date.toISOString().split('T')[0];
+        const todayStr = formatDate(today);
+
+        if (start === todayStr && end === todayStr) {
+            selectedPeriod.value = 'daily';
+        } else {
+            let d = new Date(today);
+            d.setDate(today.getDate() - 6);
+            const weeklyStart = formatDate(d);
+
+            d = new Date(today.getFullYear(), today.getMonth(), 1);
+            const monthlyStart = formatDate(d);
+
+            d = new Date(today.getFullYear(), 0, 1);
+            const yearlyStart = formatDate(d);
+            
+            // Previous Year Check
+            const prevStart = formatDate(new Date(today.getFullYear() - 1, 0, 1));
+            const prevEnd = formatDate(new Date(today.getFullYear() - 1, 11, 31));
+
+            if (start === weeklyStart && end === todayStr) {
+                selectedPeriod.value = 'weekly';
+            } else if (start === monthlyStart && end === todayStr) {
+                selectedPeriod.value = 'monthly';
+            } else if (start === yearlyStart && end === todayStr) {
+                selectedPeriod.value = 'yearly';
+            } else if (start === prevStart && end === prevEnd) {
+                selectedPeriod.value = 'previous_year';
+            } else {
+                selectedPeriod.value = 'custom';
+                isCustomMode.value = true;
+            }
+        }
+    }
+});
 </script>
 
 <template>
@@ -85,28 +164,48 @@ const generateQuickReport = (type) => {
                     <div class="p-6 text-gray-900">
                         <div class="flex flex-col gap-4">
                             <!-- Report Mode Selection -->
-                            <div class="flex flex-wrap gap-2">
-                                <button type="button" @click="generateQuickReport('daily')"
-                                    class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md text-sm font-medium text-indigo-700 transition">
-                                    Daily Report
-                                </button>
-                                <button type="button" @click="generateQuickReport('weekly')"
-                                    class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md text-sm font-medium text-indigo-700 transition">
-                                    Weekly Report
-                                </button>
-                                <button type="button" @click="generateQuickReport('monthly')"
-                                    class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md text-sm font-medium text-indigo-700 transition">
-                                    Monthly Report
-                                </button>
-                                <button type="button" @click="generateQuickReport('yearly')"
-                                    class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-md text-sm font-medium text-indigo-700 transition">
-                                    Yearly Report
-                                </button>
-                                <button type="button" @click="toggleCustomMode"
-                                    :class="isCustomMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-                                    class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium transition">
-                                    Custom Range
-                                </button>
+                            <div class="flex flex-col sm:flex-row gap-4 items-end mb-4">
+                                <div class="w-full sm:w-72">
+                                    <InputLabel for="report_period" value="Report Period" />
+                                    <select id="report_period" v-model="selectedPeriod" @change="handlePeriodChange"
+                                        class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                        <option value="" disabled>Select Period</option>
+                                        <option value="daily">Today</option>
+                                        <option value="weekly">Last 7 Days</option>
+                                        <option value="monthly">This Month</option>
+                                        <option value="yearly">This Year</option>
+                                        <option value="previous_year">Last Year</option>
+                                        <option value="custom">Custom Range</option>
+                                    </select>
+                                </div>
+
+                                <div class="w-full sm:w-72">
+                                    <InputLabel for="cause_filter" value="Incident Cause (Optional)" />
+                                    <select id="cause_filter" v-model="form.cause_id" @change="submit"
+                                        class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                        <option value="">All Causes</option>
+                                        <option v-for="cause in causes" :key="cause.id" :value="cause.id">
+                                            {{ cause.name }}
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div class="w-full sm:w-72">
+                                    <InputLabel for="category_filter" value="Place Category (Optional)" />
+                                    <select id="category_filter" v-model="form.category_id" @change="submit"
+                                        class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                        <option value="">All Categories</option>
+                                        <option v-for="category in categories" :key="category.id" :value="category.id">
+                                            {{ category.name }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="w-full sm:w-auto flex items-end">
+                                    <button @click="resetFilters" type="button"
+                                        class="mb-0.5 inline-flex items-center px-4 py-2 bg-gray-200 border border-transparent rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-300 focus:bg-gray-300 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                        Reset Filters
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Custom Date Inputs (only visible in Custom Mode) -->
@@ -131,9 +230,16 @@ const generateQuickReport = (type) => {
                             </form>
 
                             <!-- Print Button (Always visible if report exists) -->
-                            <div v-if="reportData.summary" class="mt-2 flex justify-end">
+                            <div v-if="reportData.summary" class="mt-2 flex justify-end gap-2">
+                                <button type="button" @click="exportReport"
+                                    class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-500 transition shadow-sm border border-green-700">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                    </svg>
+                                    Export CSV
+                                </button>
                                 <button type="button" @click="printReport"
-                                    class="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition">
+                                    class="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition shadow-sm border border-gray-900">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
@@ -183,86 +289,14 @@ const generateQuickReport = (type) => {
                         </div>
                     </div>
 
-                    <!-- 3. Introduction -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-bold text-gray-800 mb-2 border-l-4 border-indigo-600 pl-3">1.
-                            Introduction</h3>
-                        <textarea v-model="introduction"
-                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-gray-700"
-                            rows="3"></textarea>
-                    </div>
+                    <!-- Analytics Charts -->
+                    <AnalyticsCharts v-if="reportData.charts" :charts="reportData.charts" />
 
-                    <!-- 2. Incident Log -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-l-4 border-indigo-600 pl-3">2. Incident
-                            Log</h3>
-                        <div v-if="reportData.incidents.length > 0">
-                            <table
-                                class="w-full text-sm text-left text-gray-600 border-collapse border border-gray-300">
-                                <thead class="bg-gray-100 text-gray-700 uppercase text-xs">
-                                    <tr>
-                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">Taariikh</th>
-                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">Nooca Dabka
-                                        </th>
-                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">Goobta</th>
-                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">Sababta</th>
-                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1 text-center">
-                                            Khasaaro
-                                            Nafyeed</th>
-                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">Khasaaro
-                                            Hantiyeed
-                                        </th>
-                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1 text-right">
-                                            Khasaaro
-                                            Maaliyadeed
-                                        </th>
-                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">Hanti La
-                                            Badbaadiyey
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="inc in reportData.incidents" :key="inc.id">
-                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">
-                                            {{ new Date(inc.incident_date).toLocaleDateString() }}
-                                        </td>
-                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">{{
-                                            inc.place?.category?.name || '-'
-                                            }}</td>
-                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">{{
-                                            inc.place?.name }}
-                                        </td>
-                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">{{
-                                            inc.cause?.name }}
-                                        </td>
-                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1 text-center">
-                                            {{ inc.human_loss }} Dhimasho, {{ inc.injured_people }} Dhaawac
-                                        </td>
-                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">{{
-                                            inc.property_damage || '-' }}
-                                        </td>
-                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1 text-right">
-                                            ${{
-                                                inc.financial_loss.toLocaleString() }}</td>
-                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">{{
-                                            inc.rescued_assets
-                                            || '-' }}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div v-if="reportData.incidents.length === 0" class="text-gray-500 italic text-sm">No incidents
-                            recorded
-                            for this period.</div>
-                    </div>
-
-                    <!-- 3. Isoo Koobid (Summary Matrix) -->
+                    <!-- Summary Matrix -->
                     <div
                         class="mb-8 p-6 print:mb-4 print:p-2 bg-gray-50 border border-gray-200 rounded-lg break-inside-avoid print:w-[85%] print:mx-auto">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-l-4 border-indigo-600 pl-3">3. Isoo
-                            Koobid
-                            (Summary)</h3>
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-l-4 border-indigo-600 pl-3">
+                            Summary</h3>
                         <div class="grid grid-cols-2 md:grid-cols-5 print:grid-cols-4 gap-4 text-center">
                             <!-- Total Incidents -->
                             <div class="p-4 bg-white rounded shadow-sm border border-gray-100">
@@ -302,9 +336,85 @@ const generateQuickReport = (type) => {
                         </div>
                     </div>
 
-                    <!-- 4. Conclusion -->
+                    <!-- Introduction -->
                     <div class="mb-8">
-                        <h3 class="text-lg font-bold text-gray-800 mb-2 border-l-4 border-indigo-600 pl-3">4.
+                        <h3 class="text-lg font-bold text-gray-800 mb-2 border-l-4 border-indigo-600 pl-3">
+                            Introduction</h3>
+                        <textarea v-model="introduction"
+                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-gray-700"
+                            rows="3"></textarea>
+                    </div>
+
+                    <!-- Incident Log -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 border-l-4 border-indigo-600 pl-3">Incident
+                            Log</h3>
+                        <div v-if="reportData.incidents.length > 0">
+                            <table
+                                class="w-full text-sm text-left text-gray-600 border-collapse border border-gray-300">
+                                <thead class="bg-gray-100 text-gray-700 uppercase text-xs">
+                                    <tr>
+                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">Taariikh</th>
+                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">Nooca Dabka
+                                        </th>
+                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">Goobta</th>
+                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">Sababta</th>
+                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1 text-center">
+                                            Khasaaro
+                                            Nafyeed</th>
+                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">Khasaaro
+                                            Hantiyeed
+                                        </th>
+                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1 text-right">
+                                            Khasaaro
+                                            Maaliyadeed
+                                        </th>
+                                        <th class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">Hanti La
+                                            Badbaadiyey
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="inc in reportData.incidents" :key="inc.id">
+                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">
+                                            {{ new Date(inc.incident_date).toLocaleDateString() }}
+                                        </td>
+                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">{{
+                                            inc.place?.category?.name || '-'
+                                        }}</td>
+                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">{{
+                                            inc.place?.name }}
+                                        </td>
+                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">{{
+                                            inc.cause?.name }}
+                                        </td>
+                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1 text-center">
+                                            {{ inc.human_loss }} Dhimasho, {{ inc.injured_people }} Dhaawac
+                                        </td>
+                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">{{
+                                            inc.property_damage || '-' }}
+                                        </td>
+                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1 text-right">
+                                            ${{
+                                                inc.financial_loss.toLocaleString() }}</td>
+                                        <td class="border border-gray-300 px-4 py-2 print:px-1 print:py-1">{{
+                                            inc.rescued_assets
+                                            || '-' }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-if="reportData.incidents.length === 0" class="text-gray-500 italic text-sm">No incidents
+                            recorded
+                            for this period.</div>
+                    </div>
+
+
+
+                    <!-- Conclusion -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-2 border-l-4 border-indigo-600 pl-3">
                             Conclusion
                             &
                             Recommendations</h3>

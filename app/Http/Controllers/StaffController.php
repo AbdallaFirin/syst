@@ -11,10 +11,27 @@ class StaffController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $query = Staff::query();
+
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('position', 'like', "%{$search}%")
+                  ->orWhere('phone_number', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->has('status') && $request->status !== '') {
+            $isActive = $request->status === 'active';
+            $query->where('is_active', $isActive);
+        }
+
         return Inertia::render('Staff/Index', [
-            'staff' => Staff::all()
+            'staff' => $query->get(),
+            'filters' => $request->only(['search', 'status'])
         ]);
     }
 

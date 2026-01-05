@@ -1,18 +1,41 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { ref, watch } from 'vue';
 
-defineProps({
+const props = defineProps({
     staff: Array,
+    filters: Object
 });
 
 const form = useForm({});
+const search = ref(props.filters?.search || '');
+const status = ref(props.filters?.status || '');
+
+// Simple debounce utility
+function debounce(fn, delay) {
+    let timeoutId;
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn(...args), delay);
+    };
+}
 
 const deleteStaff = (id) => {
     if (confirm('Are you sure you want to delete this staff member?')) {
         form.delete(route('staff.destroy', id));
     }
 };
+
+const handleSearch = debounce(() => {
+    router.get(
+        route('staff.index'),
+        { search: search.value, status: status.value },
+        { preserveState: true, replace: true }
+    );
+}, 300);
+
+watch([search, status], handleSearch);
 </script>
 
 <template>
@@ -29,12 +52,28 @@ const deleteStaff = (id) => {
                     <div class="p-6 text-gray-900">
                         <div class="flex justify-between items-center mb-6">
                             <h3 class="text-lg font-medium text-gray-900">Team Members</h3>
-                            <Link
-                                :href="route('staff.create')"
-                                class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
-                            >
-                                Add New Staff
-                            </Link>
+                            <div class="flex items-center gap-4">
+                                <input 
+                                    v-model="search"
+                                    type="text" 
+                                    placeholder="Search staff..." 
+                                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                >
+                                <select
+                                    v-model="status"
+                                    class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                >
+                                    <option value="">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                                <Link
+                                    :href="route('staff.create')"
+                                    class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150 whitespace-nowrap"
+                                >
+                                    Add New Staff
+                                </Link>
+                            </div>
                         </div>
 
                         <div class="overflow-x-auto relative shadow-md sm:rounded-lg">

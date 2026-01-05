@@ -9,5 +9,10 @@ class Chemical extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'chemical_type', 'manufacture_date', 'expiry_date', 'quantity', 'unit'];
+    protected $fillable = ['name', 'chemical_type', 'description', 'manufacture_date', 'expiry_date', 'quantity', 'unit'];
+
+    public function placeCategories()
+    {
+        return $this->belongsToMany(PlaceCategory::class);
+    }
 }

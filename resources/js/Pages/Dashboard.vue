@@ -2,11 +2,13 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
 
+import IncidentsChart from '@/Components/Dashboard/IncidentsChart.vue';
+
 defineProps({
-    stats: Object,
     stats: Object,
     recent_incidents: Array,
     expiring_chemicals_list: Array,
+    incidents_by_category: Array,
 });
 
 const formatDate = (dateString) => {
@@ -224,7 +226,9 @@ const formatDate = (dateString) => {
                         </Link>
                     </div>
                 </div>
-
+                <!-- Analytics Section -->
+                <!-- Reverting Grid change, just insert component separately for now to preserve layout stability -->
+                <IncidentsChart :data="incidents_by_category" />
                 <div class="flex flex-col lg:flex-row gap-6">
                     <!-- Recent Incidents (Flex Grow) -->
                     <div class="flex-1 min-w-0 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

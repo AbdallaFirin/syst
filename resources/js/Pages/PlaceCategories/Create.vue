@@ -13,8 +13,11 @@ const props = defineProps({
 
 const form = useForm({
     name: '',
-    required_equipment: [], // Array for multi-select
+    chemicals: [], // IDs
+    icon: null,
 });
+
+const availableIcons = ['🏠', '🏢', '🏭', '🏥', '🏫', '🏪', '🏨', '⛽', '🚒', '🚛', '📦', '⚠️'];
 
 const submit = () => {
     form.post(route('place-categories.store'));
@@ -43,7 +46,24 @@ const submit = () => {
                                 <InputError class="mt-2" :message="form.errors.name" />
                             </div>
 
-                            <!-- Required Equipment (Multi-Select) -->
+                            <!-- Icon Selector -->
+                            <div class="mt-4">
+                                <InputLabel value="Select Icon (Optional)" />
+                                <div class="mt-2 grid grid-cols-6 gap-2 border border-gray-300 rounded-md p-4">
+                                     <div 
+                                        v-for="icon in availableIcons" 
+                                        :key="icon"
+                                        @click="form.icon = icon"
+                                        :class="{'bg-indigo-100 ring-2 ring-indigo-500': form.icon === icon, 'hover:bg-gray-50': form.icon !== icon}"
+                                        class="cursor-pointer p-2 rounded flex justify-center items-center transition"
+                                     >
+                                        <span class="text-2xl">{{ icon }}</span> <!-- Using Emoji for simplicity for now, can replace with SVG components if needed -->
+                                     </div>
+                                </div>
+                                <InputError class="mt-2" :message="form.errors.icon" />
+                            </div>
+
+                            <!-- Required Chemicals (Multi-Select) -->
                             <div class="mt-4">
                                 <InputLabel value="Required Chemicals / Equipment (Select Multiple)" />
                                 <div
@@ -56,7 +76,7 @@ const submit = () => {
                                     </div>
                                     <label v-for="(chem, index) in chemicals" :key="index"
                                         class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                                        <input type="checkbox" :value="chem.name" v-model="form.required_equipment"
+                                        <input type="checkbox" :value="chem.id" v-model="form.chemicals"
                                             class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
                                         <span class="text-sm text-gray-700">{{ chem.name }} ({{ chem.chemical_type
                                             }})</span>
@@ -65,7 +85,7 @@ const submit = () => {
                                 <p class="text-xs text-gray-500 mt-1">Select the chemicals/equipment mandatory for this
                                     place
                                     category.</p>
-                                <InputError class="mt-2" :message="form.errors.required_equipment" />
+                                <InputError class="mt-2" :message="form.errors.chemicals" />
                             </div>
 
                             <div class="flex items-center justify-end mt-6">

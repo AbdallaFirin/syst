@@ -12,20 +12,16 @@ const props = defineProps({
     chemicals: Array
 });
 
-// Helper to parse JSON safely
-const getInitialEquipment = () => {
-    try {
-        const val = JSON.parse(props.category.required_equipment);
-        return Array.isArray(val) ? val : [];
-    } catch (e) {
-        return [];
-    }
-};
+// Initial chemicals IDs
+const initialChemicals = props.category.chemicals ? props.category.chemicals.map(c => c.id) : [];
 
 const form = useForm({
     name: props.category.name,
-    required_equipment: getInitialEquipment(),
+    chemicals: initialChemicals,
+    icon: props.category.icon,
 });
+
+const availableIcons = ['🏠', '🏢', '🏭', '🏥', '🏫', '🏪', '🏨', '⛽', '🚒', '🚛', '📦', '⚠️'];
 
 const submit = () => {
     form.put(route('place-categories.update', props.category.id));
@@ -59,7 +55,24 @@ const submit = () => {
                                 <InputError class="mt-2" :message="form.errors.name" />
                             </div>
 
-                             <!-- Required Equipment (Multi-Select) -->
+                            <!-- Icon Selector -->
+                            <div class="mt-4">
+                                <InputLabel value="Select Icon (Optional)" />
+                                <div class="mt-2 grid grid-cols-6 gap-2 border border-gray-300 rounded-md p-4">
+                                     <div 
+                                        v-for="icon in availableIcons" 
+                                        :key="icon"
+                                        @click="form.icon = icon"
+                                        :class="{'bg-indigo-100 ring-2 ring-indigo-500': form.icon === icon, 'hover:bg-gray-50': form.icon !== icon}"
+                                        class="cursor-pointer p-2 rounded flex justify-center items-center transition"
+                                     >
+                                        <span class="text-2xl">{{ icon }}</span>
+                                     </div>
+                                </div>
+                                <InputError class="mt-2" :message="form.errors.icon" />
+                            </div>
+
+                             <!-- Required Chemicals (Multi-Select) -->
                             <div class="mt-4">
                                 <InputLabel value="Required Chemicals / Equipment (Select Multiple)" />
                                 <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 border border-gray-300 rounded-md p-4 max-h-60 overflow-y-auto">
@@ -69,14 +82,14 @@ const submit = () => {
                                     <label v-for="(chem, index) in chemicals" :key="index" class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                                         <input 
                                             type="checkbox" 
-                                            :value="chem.name" 
-                                            v-model="form.required_equipment"
+                                            :value="chem.id" 
+                                            v-model="form.chemicals"
                                             class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
                                         >
                                         <span class="text-sm text-gray-700">{{ chem.name }} ({{ chem.chemical_type }})</span>
                                     </label>
                                 </div>
-                                <InputError class="mt-2" :message="form.errors.required_equipment" />
+                                <InputError class="mt-2" :message="form.errors.chemicals" />
                             </div>
 
                             <div class="flex items-center justify-end mt-6">

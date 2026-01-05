@@ -1,17 +1,46 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import Modal from '@/Components/Modal.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
-defineProps({
+const props = defineProps({
     incidents: Array,
+    causes: Array,
+    filters: Object
 });
 
 const form = useForm({});
 const showingIncidentModal = ref(false);
 const selectedIncident = ref(null);
+
+const filters = ref({
+    date_from: props.filters?.date_from || '',
+    date_to: props.filters?.date_to || '',
+    cause_id: props.filters?.cause_id || ''
+});
+
+// Simple debounce utility
+function debounce(fn, delay) {
+    let timeoutId;
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn(...args), delay);
+    };
+}
+
+const updateFilters = debounce(() => {
+    router.get(
+        route('fire-incidents.index'),
+        filters.value,
+        { preserveState: true, preserveScroll: true, replace: true }
+    );
+}, 300);
+
+watch(filters, () => {
+    updateFilters();
+}, { deep: true });
 
 const deleteIncident = (id) => {
     if (confirm('Are you sure you want to delete this incident report?')) {
@@ -62,12 +91,38 @@ const getRescuedAssets = (incident) => {
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-gray-900">
-                        <div class="flex justify-between items-center mb-6">
+                        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                             <h3 class="text-lg font-medium text-gray-900">Incident Log</h3>
-                            <Link :href="route('fire-incidents.create')"
-                                class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-700 focus:bg-red-700 active:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                                Report Incident
-                            </Link>
+                            
+                            <div class="flex flex-col md:flex-row gap-4 items-center w-full md:w-auto">
+                                <div class="flex gap-2 items-center">
+                                    <input 
+                                        v-model="filters.date_from"
+                                        type="date" 
+                                        class="rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 text-sm"
+                                        placeholder="From"
+                                    >
+                                    <span class="text-gray-500">-</span>
+                                    <input 
+                                        v-model="filters.date_to"
+                                        type="date" 
+                                        class="rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 text-sm"
+                                        placeholder="To"
+                                    >
+                                </div>
+                                <select 
+                                    v-model="filters.cause_id"
+                                    class="rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 text-sm w-full md:w-48"
+                                >
+                                    <option value="">All Causes</option>
+                                    <option v-for="cause in causes" :key="cause.id" :value="cause.id">{{ cause.name }}</option>
+                                </select>
+
+                                <Link :href="route('fire-incidents.create')"
+                                    class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-700 focus:bg-red-700 active:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition ease-in-out duration-150 whitespace-nowrap">
+                                    Report Incident
+                                </Link>
+                            </div>
                         </div>
 
                         <div class="overflow-x-auto relative shadow-md sm:rounded-lg">
@@ -92,6 +147,7 @@ const getRescuedAssets = (incident) => {
                                             : 'Unknown' }}</td>
                                         <td class="py-4 px-6">{{ incident.cause ? incident.cause.name : 'Unknown' }}
                                         </td>
+
                                         <td class="py-4 px-6 text-right flex justify-end gap-3">
                                             <button @click="viewIncident(incident)"
                                                 class="text-gray-500 hover:text-indigo-600 transition"

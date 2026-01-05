@@ -37,6 +37,9 @@ Route::middleware('auth')->group(function () {
     // Fire Incident Management Routes
     Route::resource('incident-causes', \App\Http\Controllers\IncidentCauseController::class);
     Route::resource('fire-incidents', \App\Http\Controllers\FireIncidentController::class);
+    Route::post('/fire-incidents/{fireIncident}/upload-image', [\App\Http\Controllers\FireIncidentController::class, 'uploadImage'])->name('fire-incidents.upload-image');
+    Route::delete('/incident-images/{id}', [\App\Http\Controllers\FireIncidentController::class, 'deleteImage'])->name('incident-images.destroy');
+    Route::get('/fire-incidents/{fireIncident}/case-file', [\App\Http\Controllers\FireIncidentController::class, 'caseFile'])->name('fire-incidents.case-file');
 
     // Reports
     Route::get('/reports', [\App\Http\Controllers\ReportController::class, 'index'])->name('reports.index');

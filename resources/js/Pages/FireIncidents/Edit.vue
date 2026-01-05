@@ -4,7 +4,9 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 const props = defineProps({
     incident: Object,
@@ -23,7 +25,37 @@ const form = useForm({
     rescued_people: props.incident.rescued_people,
     rescued_assets: props.incident.rescued_assets,
     additional_notes: props.incident.additional_notes,
+    status: props.incident.status || 'pending',
 });
+
+const imageForm = useForm({
+    image: null,
+    caption: ''
+});
+
+const uploadMessage = ref('');
+
+const handleFileChange = (e) => {
+    imageForm.image = e.target.files[0];
+};
+
+const uploadPhoto = () => {
+    imageForm.post(route('fire-incidents.upload-image', props.incident.id), {
+        onSuccess: () => {
+            imageForm.reset();
+            uploadMessage.value = 'Photo uploaded!';
+            setTimeout(() => uploadMessage.value = '', 3000);
+            // Optionally reload to see new image if not auto-injected by Props update
+            // Inertia usually handles prop updates automatically on success
+        }
+    });
+};
+
+const deletePhoto = (id) => {
+    if(confirm('Delete this photo?')) {
+        router.delete(route('incident-images.destroy', id));
+    }
+};
 
 const submit = () => {
     form.put(route('fire-incidents.update', props.incident.id));
@@ -150,18 +182,30 @@ const submit = () => {
                                     <InputError class="mt-2" :message="form.errors.additional_notes" />
                                 </div>
 
+
+
+
+
                             </div>
 
-                            <div class="flex items-center justify-end mt-6">
-                                <Link :href="route('fire-incidents.index')"
-                                    class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                    Cancel
-                                </Link>
+                            <div class="flex items-center justify-between mt-8 border-t pt-6">
+                                <a :href="route('fire-incidents.case-file', incident.id)" target="_blank"
+                                    class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 active:bg-gray-900 focus:outline-none focus:border-gray-900 focus:ring ring-gray-300 disabled:opacity-25 transition ease-in-out duration-150">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    Print Case File
+                                </a>
 
-                                <PrimaryButton class="ms-4 bg-red-600 hover:bg-red-500"
-                                    :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
-                                    Update Report
-                                </PrimaryButton>
+                                <div class="flex items-center">
+                                    <Link :href="route('fire-incidents.index')"
+                                        class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        Cancel
+                                    </Link>
+
+                                    <PrimaryButton class="ms-4 bg-red-600 hover:bg-red-500"
+                                        :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
+                                        Update Report
+                                    </PrimaryButton>
+                                </div>
                             </div>
                         </form>
                     </div>

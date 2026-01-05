@@ -9,13 +9,45 @@ use Inertia\Inertia;
 
 class PlaceController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Eager load places for categories to enable grouping on frontend.
-        // Also simpler: just send all places (with category loaded) and all categories.
-        // Or send Categories WITH places.
-        
-        $categories = PlaceCategory::with('places')->get();
+        $search = $request->input('search');
+
+        if ($request->has('category_id')) {
+            $category = PlaceCategory::with(['places' => function ($query) use ($search) {
+                if ($search) {
+                    $query->where('name', 'like', "%{$search}%")
+                          ->orWhere('location', 'like', "%{$search}%");
+                }
+            }])->findOrFail($request->category_id);
+
+            return Inertia::render('Places/List', [
+                'category' => $category,
+                'filters' => $request->only(['search'])
+            ]);
+        }
+
+        // Global Search
+        if ($search) {
+             $places = Place::with('category')
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('location', 'like', "%{$search}%")
+                ->get();
+             
+             // Wrap in a structure matching what List.vue expects
+             $category = [
+                'id' => null,
+                'name' => 'Search Results',
+                'places' => $places
+             ];
+
+             return Inertia::render('Places/List', [
+                'category' => $category,
+                'filters' => $request->only(['search'])
+            ]);
+        }
+
+        $categories = PlaceCategory::withCount('places')->get();
 
         return Inertia::render('Places/Index', [
             'categories' => $categories
