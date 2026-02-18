@@ -13,6 +13,7 @@ class IncidentImage extends Model
         'fire_incident_id',
         'image_path',
         'caption',
+        'category',
     ];
 
     public function incident()

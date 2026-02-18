@@ -5,6 +5,14 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
+
+const maxDate = computed(() => {
+    const now = new Date();
+    // Adjust to local ISO string
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+});
 
 defineProps({
     places: Array,
@@ -33,6 +41,8 @@ const form = useForm({
     status: 'pending',
     image: null,
     image_caption: '',
+    death_evidence: [],
+    injury_evidence: [],
 });
 
 const submit = () => {
@@ -141,7 +151,7 @@ const createCause = () => {
                                 <div class="col-span-2 md:col-span-1">
                                     <InputLabel for="incident_date" value="Date & Time of Incident" />
                                     <TextInput id="incident_date" type="datetime-local" class="mt-1 block w-full"
-                                        v-model="form.incident_date" required />
+                                        v-model="form.incident_date" :max="maxDate" required />
                                     <InputError class="mt-2" :message="form.errors.incident_date" />
                                 </div>
 
@@ -173,6 +183,17 @@ const createCause = () => {
                                     <TextInput id="human_loss" type="number" class="mt-1 block w-full"
                                         v-model="form.human_loss" required min="0" />
                                     <InputError class="mt-2" :message="form.errors.human_loss" />
+                                    <div class="mt-2">
+                                        <InputLabel value="Death Evidence (Photo/Doc)" class="text-xs text-gray-500" />
+                                        <input type="file" multiple @change="e => form.death_evidence = Array.from(e.target.files)" 
+                                            class="mt-1 block w-full text-xs text-slate-500
+                                            file:mr-4 file:py-1 file:px-2
+                                            file:rounded-full file:border-0
+                                            file:text-xs file:font-semibold
+                                            file:bg-red-50 file:text-red-700
+                                            hover:file:bg-red-100" />
+                                        <InputError :message="form.errors.death_evidence" class="mt-1" />
+                                    </div>
                                 </div>
 
                                 <div>
@@ -180,6 +201,17 @@ const createCause = () => {
                                     <TextInput id="injured_people" type="number" class="mt-1 block w-full"
                                         v-model="form.injured_people" required min="0" />
                                     <InputError class="mt-2" :message="form.errors.injured_people" />
+                                    <div class="mt-2">
+                                        <InputLabel value="Injury Evidence (Photo/Doc)" class="text-xs text-gray-500" />
+                                        <input type="file" multiple @change="e => form.injury_evidence = Array.from(e.target.files)" 
+                                            class="mt-1 block w-full text-xs text-slate-500
+                                            file:mr-4 file:py-1 file:px-2
+                                            file:rounded-full file:border-0
+                                            file:text-xs file:font-semibold
+                                            file:bg-orange-50 file:text-orange-700
+                                            hover:file:bg-orange-100" />
+                                        <InputError :message="form.errors.injury_evidence" class="mt-1" />
+                                    </div>
                                 </div>
 
                                 <div>

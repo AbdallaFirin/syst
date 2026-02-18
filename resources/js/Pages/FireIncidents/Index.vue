@@ -76,6 +76,10 @@ const getPropertyDamage = (incident) => {
 const getRescuedAssets = (incident) => {
     return incident.rescued_assets || 'No specific assets noted';
 };
+
+const getEvidence = (incident, type) => {
+    return incident.images?.filter(img => img.category === type) || [];
+};
 </script>
 
 <template>
@@ -149,6 +153,14 @@ const getRescuedAssets = (incident) => {
                                         </td>
 
                                         <td class="py-4 px-6 text-right flex justify-end gap-3">
+                                            <a :href="route('fire-incidents.case-file', incident.id)" target="_blank"
+                                                class="text-gray-500 hover:text-indigo-600 transition"
+                                                title="Print Case File">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />
+                                                </svg>
+                                            </a>
+
                                             <button @click="viewIncident(incident)"
                                                 class="text-gray-500 hover:text-indigo-600 transition"
                                                 title="View Details">
@@ -248,6 +260,31 @@ const getRescuedAssets = (incident) => {
                             <div>
                                 <span class="text-sm text-gray-500">Property Damage:</span>
                                 <div class="font-medium text-gray-900">{{ getPropertyDamage(selectedIncident) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Evidence Section -->
+                    <div v-if="getEvidence(selectedIncident, 'death_evidence').length > 0 || getEvidence(selectedIncident, 'injury_evidence').length > 0" class="border rounded-lg p-4 bg-gray-50">
+                        <h3 class="text-sm font-bold text-gray-700 border-b pb-2 mb-3">Attached Evidence</h3>
+                        <div class="grid grid-cols-1 gap-4">
+                            <div v-if="getEvidence(selectedIncident, 'death_evidence').length > 0">
+                                <span class="text-xs font-bold text-red-600 uppercase">Death Evidence</span>
+                                <div class="mt-2 space-y-1">
+                                    <div v-for="img in getEvidence(selectedIncident, 'death_evidence')" :key="img.id" class="flex items-center text-xs bg-white p-2 rounded border">
+                                        <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                                        <a :href="'/storage/' + img.image_path" target="_blank" class="text-blue-600 hover:underline truncate">{{ img.caption || 'View Document' }}</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-if="getEvidence(selectedIncident, 'injury_evidence').length > 0">
+                                <span class="text-xs font-bold text-orange-600 uppercase">Injury Evidence</span>
+                                <div class="mt-2 space-y-1">
+                                    <div v-for="img in getEvidence(selectedIncident, 'injury_evidence')" :key="img.id" class="flex items-center text-xs bg-white p-2 rounded border">
+                                        <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                                        <a :href="'/storage/' + img.image_path" target="_blank" class="text-blue-600 hover:underline truncate">{{ img.caption || 'View Document' }}</a>
+                                    </div>
                                 </div>
                             </div>
                         </div>

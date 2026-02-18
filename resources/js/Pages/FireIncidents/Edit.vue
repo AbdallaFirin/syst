@@ -6,13 +6,22 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 const props = defineProps({
     incident: Object,
     places: Array,
     causes: Array,
 });
+
+const maxDate = computed(() => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+});
+
+const deathEvidence = computed(() => props.incident.images?.filter(img => img.category === 'death_evidence') || []);
+const injuryEvidence = computed(() => props.incident.images?.filter(img => img.category === 'injury_evidence') || []);
 
 const form = useForm({
     place_id: props.incident.place_id,
@@ -26,6 +35,8 @@ const form = useForm({
     rescued_assets: props.incident.rescued_assets,
     additional_notes: props.incident.additional_notes,
     status: props.incident.status || 'pending',
+    death_evidence: [],
+    injury_evidence: [],
 });
 
 const imageForm = useForm({
@@ -98,7 +109,7 @@ const submit = () => {
                                          Laravel default cast is often full string. Might need formatting. 
                                          For this task, assuming the model casts 'datetime' or user picks new date. -->
                                     <TextInput id="incident_date" type="datetime-local" class="mt-1 block w-full"
-                                        v-model="form.incident_date" required />
+                                        v-model="form.incident_date" :max="maxDate" required />
                                     <InputError class="mt-2" :message="form.errors.incident_date" />
                                 </div>
 
@@ -126,6 +137,28 @@ const submit = () => {
                                     <TextInput id="human_loss" type="number" class="mt-1 block w-full"
                                         v-model="form.human_loss" required min="0" />
                                     <InputError class="mt-2" :message="form.errors.human_loss" />
+                                    <!-- Display Existing Death Evidence -->
+                                    <div v-if="deathEvidence.length > 0" class="mt-2 p-2 bg-gray-50 rounded border">
+                                        <p class="text-xs font-bold text-gray-500 mb-1">Attached Evidence:</p>
+                                        <div v-for="img in deathEvidence" :key="img.id" class="flex items-center justify-between text-xs">
+                                            <a :href="'/storage/' + img.image_path" target="_blank" class="text-blue-600 hover:underline flex items-center gap-1">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                                                View Document/Photo
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <!-- Add New Death Evidence -->
+                                    <div class="mt-2">
+                                        <InputLabel value="Add New Death Evidence" class="text-xs text-gray-500" />
+                                        <input type="file" multiple @change="e => form.death_evidence = Array.from(e.target.files)"
+                                            class="mt-1 block w-full text-xs text-slate-500
+                                            file:mr-4 file:py-1 file:px-2
+                                            file:rounded-full file:border-0
+                                            file:text-xs file:font-semibold
+                                            file:bg-red-50 file:text-red-700
+                                            hover:file:bg-red-100" />
+                                        <InputError :message="form.errors.death_evidence" class="mt-1" />
+                                    </div>
                                 </div>
 
                                 <div>
@@ -133,6 +166,28 @@ const submit = () => {
                                     <TextInput id="injured_people" type="number" class="mt-1 block w-full"
                                         v-model="form.injured_people" required min="0" />
                                     <InputError class="mt-2" :message="form.errors.injured_people" />
+                                    <!-- Display Existing Injury Evidence -->
+                                    <div v-if="injuryEvidence.length > 0" class="mt-2 p-2 bg-gray-50 rounded border">
+                                        <p class="text-xs font-bold text-gray-500 mb-1">Attached Evidence:</p>
+                                        <div v-for="img in injuryEvidence" :key="img.id" class="flex items-center justify-between text-xs">
+                                            <a :href="'/storage/' + img.image_path" target="_blank" class="text-blue-600 hover:underline flex items-center gap-1">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                                                View Document/Photo
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <!-- Add New Injury Evidence -->
+                                    <div class="mt-2">
+                                        <InputLabel value="Add New Injury Evidence" class="text-xs text-gray-500" />
+                                        <input type="file" multiple @change="e => form.injury_evidence = Array.from(e.target.files)"
+                                            class="mt-1 block w-full text-xs text-slate-500
+                                            file:mr-4 file:py-1 file:px-2
+                                            file:rounded-full file:border-0
+                                            file:text-xs file:font-semibold
+                                            file:bg-orange-50 file:text-orange-700
+                                            hover:file:bg-orange-100" />
+                                        <InputError :message="form.errors.injury_evidence" class="mt-1" />
+                                    </div>
                                 </div>
 
                                 <div>

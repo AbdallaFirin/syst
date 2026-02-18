@@ -41,4 +41,14 @@ class FireIncident extends Model
     {
         return $this->hasMany(IncidentImage::class, 'fire_incident_id');
     }
+
+    public function deathEvidence()
+    {
+        return $this->hasMany(IncidentImage::class, 'fire_incident_id')->where('category', 'death_evidence');
+    }
+
+    public function injuryEvidence()
+    {
+        return $this->hasMany(IncidentImage::class, 'fire_incident_id')->where('category', 'injury_evidence');
+    }
 }
